@@ -1,8 +1,9 @@
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-  TeX: { equationNumbers: { autoNumber: "AMS" } }
-});
-</script>
+---
+layout: default
+title: トップページ
+---
+
+
 
 # 余因子行列を用いる方法
 余因子$\Delta_{ij}$は対象の行列の$i$行目と$j$列目を除いた行列の行列式を$(−1)i+j$倍したもの。
