@@ -28,30 +28,38 @@ end
 """
 Gaussian Process
 """
-mutable struct GaussianProcess 
-    k::AbstractKernel
+mutable struct GPKernel <: Kernel
+    k::Kernel
 end
 
+mutable struct GaussianProcess 
+    gpk::GPKernel
+    η::Float64
+end
+GaussianProcess(k::Kernel) = GaussianProcess(GPKernel(k),0.0)
+GaussianProcess(k::Kernel, η::Real) = GaussianProcess(GPKernel(k),exp(η))
+GaussianProcess(k::GPKernel) = GaussianProcess(k,0.0)
+GaussianProcess(k::GPKernel, η::Real) = GaussianProcess(k,exp(η))
+
 function _predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVector,
-        ytrain::AbstractVector{T}, K::Matrix{S}) where {T<:Real, S<:Real}
-    N = size(K,1)
-    K_inv = Symmetric(inv(K))
-    s = kernel_matrix(gp.k,xtest)
-    k = kernel_matrix(gp.k,xtrain, xtest)
-    μ = k'*K_inv*ytrain
-    σ2 = s - k'*K_inv*k
+        ytrain::AbstractVector{T}, K::Matrix{S}, Kinv::AbstractMatrix{S}) where {T<:Real, S<:Real}
+    s = kernel_matrix(gp.gpk.k, xtest) + [gp.η]
+    k = kernel_matrix(gp.gpk.k, xtrain, xtest)
+    μ = k'*Kinv*ytrain
+    σ2 = s - k'*Kinv*k
     return μ,σ2
 end
 _predict(gp::GaussianProcess, xtest::Real, xtrain::AbstractVector,
-        ytrain::AbstractVector{T}, K::Matrix{S}) where {T<:Real, S<:Real} = _predict(gp, [xtest], xtrain, ytrain, K)
+        ytrain::AbstractVector{T}, K::Matrix{S}, Kinv::AbstractMatrix{S}) where {T<:Real, S<:Real} = _predict(gp, [xtest], xtrain, ytrain, K, Kinv)
 
 function predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVector,
         ytrain::AbstractVector{T}) where {T<:Real}
     μs = zero(xtest)
     σs = zero(xtest)
-    K = kernel_matrix(gp.k, xtrain)
+    K = kernel_matrix(gp.gpk.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
+    Kinv = Symmetric(inv(K))
     for (i,x) in enumerate(xtest)
-        μ, σ2 = _predict(gp, x, xtrain, ytrain, K)
+        μ, σ2 = _predict(gp, x, xtrain, ytrain, K, Kinv)
         μs[i], σs[i] = μ[1], σ2[1]
     end
     σs[findall(x->x<0, σs)] .= 0.;

@@ -13,17 +13,13 @@ Gaussian Kernel
 mutable struct GaussianKernel <: Kernel
     θ1::Float64
     θ2::Float64
-    function GaussianKernel(θ1::Float64, θ2::Float64)
-        @assert θ1 != 0 && θ2 != 0
-        new(θ1, θ2)
-    end
 end
 GaussianKernel(θ1::Real, θ2::Real) = GaussianKernel(Float64(θ1), Float64(θ2))
 
-kernel(k::GaussianKernel, x1::Real, x2::Real) = k.θ1 * exp(-(x1 - x2)^2 / k.θ2)
+kernel(k::GaussianKernel, x1::Real, x2::Real) = exp(k.θ1) * exp(-(x1 - x2)^2 / exp(k.θ2))
 
 function kernel(k::GaussianKernel, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
-    k.θ1 * exp(-sum((x1 - x2).^2) / k.θ2)
+    exp(k.θ1) * exp(-sum((x1 - x2).^2) / exp(k.θ2))
 end
 
 # function logderiv(gp::GaussianProcess, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
@@ -144,27 +140,6 @@ function kernel(k::ConstantKernel, x1::AbstractVector{T}, x2::AbstractVector{S})
     length(x1) == length(x2) || throw(DimensionMismatch("size of x1 not equal to size of x2"))
     return 1.0
 end
-
-mutable struct DiagonalConstantKernel <: Kernel
-    θ::Float64
-    function DiagonalConstantKernel(θ::Float64)
-        @assert θ != 0
-        new(θ)
-    end
-end
-DiagonalDiagonalKernel() = DiagonalConstantKernel(1.0)
-DiagonalConstantKernel(θ::Real) = DiagonalConstantKernel(Float64(θ))
-
-kernel(k::DiagonalConstantKernel, x1::Real, x2::Real) = x1==x2 ? k.θ : 0.0
-
-function kernel(k::DiagonalConstantKernel, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
-    length(x1) == length(x2) || throw(DimensionMismatch("size of x1 not equal to size of x2"))
-    if x1==x2
-        return k.θ
-    end
-    return 0.0
-end
-
 
 
 """
