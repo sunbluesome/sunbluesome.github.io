@@ -155,7 +155,7 @@ end
 DiagonalDiagonalKernel() = DiagonalConstantKernel(1.0)
 DiagonalConstantKernel(θ::Real) = DiagonalConstantKernel(Float64(θ))
 
-kernel(k::ConstantKernel, x1::Real, x2::Real) = x1==x2 ? k.θ : 0.0
+kernel(k::DiagonalConstantKernel, x1::Real, x2::Real) = x1==x2 ? k.θ : 0.0
 
 function kernel(k::DiagonalConstantKernel, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
     length(x1) == length(x2) || throw(DimensionMismatch("size of x1 not equal to size of x2"))

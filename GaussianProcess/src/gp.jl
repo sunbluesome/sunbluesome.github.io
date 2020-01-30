@@ -28,15 +28,8 @@ end
 """
 Gaussian Process
 """
-
-mutable struct GPKernel{K <: AbstractKernel}
-    k::K
-end
-
-GPKernel(k::AbstractKernel, η::Real) = GPKernel(k, Float64(η))
-
 mutable struct GaussianProcess 
-    k::GPKernel
+    k::AbstractKernel
 end
 
 function _predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVector,
