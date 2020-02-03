@@ -16,23 +16,23 @@ mutable struct GaussianKernel <: Kernel
 end
 GaussianKernel(θ1::Real, θ2::Real) = GaussianKernel(Float64(θ1), Float64(θ2))
 
-kernel(k::GaussianKernel, x1::Real, x2::Real) = exp(k.θ1) * exp(-(x1 - x2)^2 / exp(k.θ2))
+kernel(k::GaussianKernel, x1::Real, x2::Real) = k.θ1 * exp(-(x1 - x2)^2 / k.θ2)
 
 function kernel(k::GaussianKernel, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
-    exp(k.θ1) * exp(-sum((x1 - x2).^2) / exp(k.θ2))
+    k.θ1 * exp(-sum((x1 - x2).^2) / k.θ2)
 end
 
-# function logderiv(gp::GaussianProcess, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
-#     _logderiv(gp, gp.k, x1, x2)
-# end
-# logderiv(gp::GaussianProcess, x::AbstractVector{T}) where {T<:Real} = _logderiv(gp, gp.k, x, x)
+function logderiv(k::GaussianKernel, x1::AbstractVector, x2::AbstractVector)
+    K = kernel_matrix(k, x1, x2)
+    dkdθ1 = K
+    dkdθ2 = K .* .-(x1, x2').^2 ./ k.θ2
+    return [dkdθ1, dkdθ2]
+end
 
-# function update!(gp::GaussianProcess, grad::AbstractVector; lr=1e-3)
-#     # θ1 = exp(τ)
-#     gp.k.θ1 += lr*exp(grad[1])
-#     gp.k.θ2 += lr*exp(grad[2])
-#     gp.σ2 += lr*exp(grad[3])
-# end
+function update!(k::GaussianKernel, params::AbstractVector{T}) where {T<:Real}
+    k.θ1 = params[1]
+    k.θ2 = params[2]
+end
 
 
 """
@@ -219,27 +219,4 @@ Base.:+(k1::Kernel, k2::AbstractKernel) = k2 + k1
 Base.:-(k1::AbstractKernel, k2::AbstractKernel) = k1 + (-k2)
 
 
-
-"""
-log derivative
-"""
-# function logderiv(gp::GaussianProcess, x1::AbstractVector{T}, x2::AbstractVector{S}) where {T<:Real, S<:Real}
-#     _logderiv(gp, gp.k, x1, x2)
-# end
-# logderiv(gp::GaussianProcess, x::AbstractVector{T}) where {T<:Real} = _logderiv(gp, gp.k, x, x)
-
-
-"""
-Likelihood
-"""
-# function loglikelihood(gp::GaussianProcess, xtrain::AbstractVector{T},
-#         ytrain::AbstractVector{S}) where {T<:Real, S<:Real}
-#     K = kernel_matrix(gp.k, xtrain)
-#     Kinv = inv(K)
-#     -log(det(K)) - ytrain' * Kinv * ytrain
-# end
-
-# function loglikelihood_deriv(Kgrad)
-#     -tr(Kinv * Kgrad) + transpose(Kinv * ytrain) * Kgrad * (Kinv * ytrain)
-# end
 

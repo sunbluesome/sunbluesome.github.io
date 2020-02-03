@@ -24,27 +24,30 @@ function sample(k::Kernel, xx::AbstractVector; seed::Integer=-1)
 end
 
 
-
 """
 Gaussian Process
 """
-mutable struct GPKernel <: Kernel
-    k::Kernel
-end
-
 mutable struct GaussianProcess 
-    gpk::GPKernel
+    k::Kernel
     η::Float64
+    function GaussianProcess(k::Kernel, η::Float64)
+        new(k, η)
+    end
 end
-GaussianProcess(k::Kernel) = GaussianProcess(GPKernel(k),0.0)
-GaussianProcess(k::Kernel, η::Real) = GaussianProcess(GPKernel(k),exp(η))
-GaussianProcess(k::GPKernel) = GaussianProcess(k,0.0)
-GaussianProcess(k::GPKernel, η::Real) = GaussianProcess(k,exp(η))
+GaussianProcess(k::Kernel) = GaussianProcess(k,0.0)
+GaussianProcess(k::Kernel, η::Real) = GaussianProcess(k,Float64(η))
+
+function logderiv(gp::GaussianProcess, x1::AbstractVector, x2::AbstractVector)
+    klogderiv = logderiv(gp.k, x1, x2)
+    nlogderiv = diagm(gp.η*ones(length(x1)))
+    return [klogderiv..., nlogderiv]
+end
+logderiv(gp::GaussianProcess, xx::AbstractVector) = logderiv(gp, xx, xx)
 
 function _predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVector,
         ytrain::AbstractVector{T}, K::Matrix{S}, Kinv::AbstractMatrix{S}) where {T<:Real, S<:Real}
-    s = kernel_matrix(gp.gpk.k, xtest) + [gp.η]
-    k = kernel_matrix(gp.gpk.k, xtrain, xtest)
+    s = kernel_matrix(gp.k, xtest) + [gp.η]
+    k = kernel_matrix(gp.k, xtrain, xtest)
     μ = k'*Kinv*ytrain
     σ2 = s - k'*Kinv*k
     return μ,σ2
@@ -56,7 +59,7 @@ function predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVec
         ytrain::AbstractVector{T}) where {T<:Real}
     μs = zero(xtest)
     σs = zero(xtest)
-    K = kernel_matrix(gp.gpk.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
+    K = kernel_matrix(gp.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
     Kinv = Symmetric(inv(K))
     for (i,x) in enumerate(xtest)
         μ, σ2 = _predict(gp, x, xtrain, ytrain, K, Kinv)
@@ -67,3 +70,33 @@ function predict(gp::GaussianProcess, xtest::AbstractVector, xtrain::AbstractVec
 end
 predict(gp::GaussianProcess, xtest::Real, xtrain::AbstractVector,
         ytrain::AbstractVector{T}) where {T<:Real} = predict(gp, [xtest], xtrain, ytrain)
+
+function update!(gp::GaussianProcess, params::Vector{T}) where {T<:Real}
+    update!(gp.k, params[1:end-1])
+    gp.η = params[end]
+end
+
+
+"""
+Likelihood
+"""
+function loglikelihood(gp::GaussianProcess, xtrain::AbstractVector{T},
+        ytrain::AbstractVector{S}) where {T<:Real, S<:Real}
+    K = kernel_matrix(gp.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
+    Kinv = Symmetric(inv(K))
+    -log(det(K)) - ytrain' * Kinv * ytrain
+end
+
+function loglikelihood_partialderiv(gp::GaussianProcess, ytrain::AbstractVector{S},
+        Kinv::Matrix{U}, Kgrad::Matrix{U}) where {T<:Real, S<:Real, U<:Real}
+    -tr(Kinv * Kgrad) + transpose(Kinv * ytrain) * Kgrad * (Kinv * ytrain)
+end
+
+function loglikelihood_deriv(gp::GaussianProcess, xtrain::AbstractVector{T},
+        ytrain::AbstractVector{S}) where {T<:Real, S<:Real}
+    K = kernel_matrix(gp.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
+    Kinv = Matrix(Symmetric(inv(K)))
+    Kinvy = Kinv * ytrain
+    Kgrads = logderiv(gp, xtrain)
+    [loglikelihood_partialderiv(gp, ytrain, Kinv, Kgrad) for Kgrad in Kgrads]
+end
