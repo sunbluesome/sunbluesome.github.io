@@ -84,7 +84,12 @@ function loglikelihood(gp::GaussianProcess, xtrain::AbstractVector{T},
         ytrain::AbstractVector{S}) where {T<:Real, S<:Real}
     K = kernel_matrix(gp.k, xtrain) + diagm(gp.η*ones(length(xtrain)))
     Kinv = Symmetric(inv(K))
-    -log(det(K)) - ytrain' * Kinv * ytrain
+    detK = det(K)
+    if detK <= 0
+        return missing
+    else
+        return -log(det(K)) - ytrain' * Kinv * ytrain
+    end
 end
 
 function loglikelihood_partialderiv(gp::GaussianProcess, ytrain::AbstractVector{S},

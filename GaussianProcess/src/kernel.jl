@@ -14,6 +14,7 @@ mutable struct GaussianKernel <: Kernel
     θ1::Float64
     θ2::Float64
 end
+GaussianKernel() = GaussianKernel(1., 1.)
 GaussianKernel(θ1::Real, θ2::Real) = GaussianKernel(Float64(θ1), Float64(θ2))
 
 kernel(k::GaussianKernel, x1::Real, x2::Real) = k.θ1 * exp(-(x1 - x2)^2 / k.θ2)
