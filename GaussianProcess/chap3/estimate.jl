@@ -33,6 +33,7 @@ xtest = collect(range(-1,stop=4,length=100))
 
 k = GaussianKernel(τ, σ)
 gp = GaussianProcess(k, η)
+method = SubsetOfData()
 x0 = [σ, η] 
 
 # Optimize
@@ -51,7 +52,7 @@ for x in [x0, xopt]
     τ, σ, η = x 
     k = GaussianKernel(τ, σ)
     gp = GaussianProcess(k, η)
-    μs,σs = predict(gp, xtest, xtrain, ytrain)
+    μs,σs = predict(gp, xtest, xtrain, ytrain, method)
     
     p = plot(xtest, μs-2sqrt.(σs), label="±2σ", alpha=0,
         fill=μs+2sqrt.(σs), fillalpha=0.3, color=:red)
